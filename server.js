@@ -78,6 +78,23 @@ var indexCollection = function(index) {
   }));
 };
 
+var indexDocument = function(indexName, collection, doc) {
+  index = client.getIndex(indexName);
+  index.index(Meteor.user().hierId, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
+    if (!err) {
+      console.log('Document indexed in ' + indexName);
+      // Mark document
+      var flag = {
+        $set: {}
+      };
+      flag.$set['_es_' + indexName] = Date.now();
+      collection.update({_id: doc._id}, flag);
+    }
+    else
+      console.log(err);
+  }));
+};
+
 ES.syncCollection = function(options) {
   var collection = options.collection; 
   var indexName = collection._name;
@@ -88,21 +105,13 @@ ES.syncCollection = function(options) {
   // Insert hook
   collection.after.insert(function(userId, doc) {
     checkClientConnection();
+    indexDocument(indexName, collection, doc);
+  });
 
-    index = client.getIndex(indexName);
-    index.index(Meteor.user().hierId, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
-      if (!err) {
-        console.log('Document indexed in ' + indexName);
-        // Mark document
-        var flag = {
-          $set: {}
-        };
-        flag.$set['_es_' + indexName] = Date.now();
-        collection.update({_id: doc._id}, flag);
-      }
-      else
-        console.log(err);
-    }));
+  // Update hook
+  collection.after.update(function(userId, doc, fieldNames, modifier, options) {
+    checkClientConnection();
+    indexDocument(indexName, collection, doc);
   });
 };
 
