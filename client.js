@@ -4,14 +4,20 @@ ES.syncCollection = function(options) {
   var collection = options.collection;
   collection.esSearch = function(searchString, cb) {
   	var query = {
-  		regexp: {}
+  		bool: {
+        should: [],
+      }
   	};
+    var q = query.bool.should;
+    q.regexp = {};
 	  _.forEach(options.fields, function(field) {
-	    query.regexp[field] = searchString;
+      var regexp = {};
+      regexp[field] = searchString;
+      q.push({regexp: regexp});
 	  });
   	Meteor.call('esSearch', options.collection._name, query, function(err, result) {
   		if (!err) {
-  			debugger;
+  			console.log(result);
   		}
 
   		cb && cb.call(err, result);
