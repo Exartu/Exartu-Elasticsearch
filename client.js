@@ -11,16 +11,32 @@ ES.syncCollection = function(options) {
     var q = query.bool.should;
     q.regexp = {};
 	  _.forEach(options.fields, function(field) {
+      if (_.isObject(field)) {
+        field = field.name;
+      }
+      
       var regexp = {};
       regexp[field] = searchString;
       q.push({regexp: regexp});
 	  });
-  	Meteor.call('esSearch', options.collection._name, query, function(err, result) {
+
+    console.log(query)
+  	Meteor.call('esSearch', collection._name, query, function(err, result) {
   		if (!err) {
   			console.log(result);
   		}
 
   		cb && cb.call(err, result);
   	});
+  };
+
+  collection.esSuggest = function(text, cb) {
+    Meteor.call('esSuggest', collection._name, text, function(err, result) {
+      if (!err) {
+        console.log(result);
+      }
+
+      cb && cb.call(err, result);
+    });
   };
 }
