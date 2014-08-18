@@ -83,23 +83,42 @@ var getIndexedCollection = function(indexName) {
 };
 
 var indexDocument = function(indexName, collection, doc) {
+  checkClientConnection();
+
   indexDef = getIndexedCollection(indexName);
   index = client.getIndex(indexName);
 
+  // Set undefined and empty to null so Elasticsearch can detect those
+  // fields and set a default value. Otherwise they won't be saved and 
+  // search will fail.
   _.forEach(_.keys(doc), function(field) {
     if (_.isEmpty(doc[field]))
       doc[field] = null;
   });
 
+  // Get information related to doc on other collections
   _.forEach(indexDef.relations, function(rel) {
-    var relItems = _.clone(doc[rel.fieldName]);
-    doc[rel.fieldName] = [];
-    _.forEach(relItems, function(relItem) {
-      console.log('fetching relation values for es')
-      var item = rel.collection.findOne({_id: relItem});
-      if (item)
-        doc[rel.fieldName].push(item[rel.valuePath]);
-    });
+    if (rel.idField) {
+      console.log('Inverse relation');
+      var selector = {};
+      selector[rel.idField] = doc._id;
+      var fields = {};
+      fields[rel.valuePath] = 1;
+      var relItems = rel.collection.find(selector, fields).fetch();
+      doc[rel.fieldName] = _.map(relItems, function(item) {
+        return { value: item[rel.valuePath]};
+      });
+      console.log(doc[rel.fieldName]);
+    } else {
+      console.log('Direct relation');
+      var relItems = _.clone(doc[rel.fieldName]);
+      doc[rel.fieldName] = [];
+      _.forEach(relItems, function(relItem) {
+        var item = rel.collection.findOne({_id: relItem});
+        if (item)
+          doc[rel.fieldName].push(item[rel.valuePath]);
+      });  
+    }
   });
 
   index.index(Meteor.user().hierId, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
@@ -126,15 +145,42 @@ ES.syncCollection = function(options) {
 
   // Insert hook
   collection.after.insert(function(userId, doc) {
-    checkClientConnection();
     indexDocument(indexName, collection, doc);
   });
 
   // Update hook
   collection.after.update(function(userId, doc, fieldNames, modifier, options) {
-    checkClientConnection();
     indexDocument(indexName, collection, doc);
   });
+
+  // Generate update hooks for all interted relations
+  _.forEach(options.relations, function(rel) {
+    if (rel.idField) {
+      var relationIndexing = function(doc) {
+        var idFieldSplitted = rel.idField.split('.');
+        var root = idFieldSplitted[0];
+        if (_.isArray(doc[root])) {
+          var ids = _.map(doc[root], function(link) {
+            var childPath = idFieldSplitted.slice(1, idFieldSplitted.length).join('.');
+            return link[childPath];
+          });
+        } else {
+          var ids = [doc[rel.idField]];
+        }
+        console.log(ids);
+        var items = collection.find({_id: {$in: ids}}).fetch();        
+        _.forEach(items, function(item) {
+          indexDocument(indexName, collection, item);
+        })
+      };
+      rel.collection.after.update(function(userId, doc, fieldNames, modifier, options) {
+        relationIndexing(doc);
+      });
+      rel.collection.after.insert(function(userId, doc) {
+        relationIndexing(doc);
+      });
+    }
+  }); 
 };
 
 Meteor.methods({
