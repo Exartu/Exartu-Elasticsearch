@@ -69,43 +69,6 @@ var indexCollection = function(index) {
         client.createIndex(index.name, function(err, result) {
           if (!err) {
             console.log("Index created ", result);
-
-            // Fields mapping 
-            var properties = {};
-
-            console.log(index.fields)
-            _.forEach(index.fields, function(field) {
-              if (_.isString(field)) {
-                properties[field] = {
-                  type: 'string',
-                  null_value: 'na',
-                }
-              } else if (field && field.sugguster) {
-                properties[field.name] = {
-                  type: 'completion',
-                  index_analyzer: "simple",
-                  search_analyzer: "simple",
-                  payloads: true
-                }
-              }
-            });
-
-            var jsonData = {};
-            jsonData[index.name] = {
-              properties: properties,
-            };
-            
-            var ignore = "ignore_conflicts=true"; // Ignore conflict merging mapping with old documents
-
-            client._request('/' + index.name + '/' + index.name + '/_mapping?' + ignore, {
-                method: 'PUT',
-                json: jsonData
-              }, Meteor.bindEnvironment(function(err, result) {
-                console.log(err, result);
-              })
-            );
-
-            initialSync(index.collection, index.name);
           }
           else
             console.log(err);
@@ -120,25 +83,46 @@ var getIndexedCollection = function(indexName) {
 };
 
 var indexDocument = function(indexName, collection, doc) {
+  checkClientConnection();
+
   indexDef = getIndexedCollection(indexName);
   index = client.getIndex(indexName);
 
-  // // Proccess suggesters fields
-  // _.forEach(_.where(indexDef.fields, {sugguster: true}), function(fieldDef) {
-  //   var value = doc[fieldDef.name];
-  //   doc[fieldDef.name] = {
-  //     input: value,
-  //     payload: {_id: doc._id}
-  //   }
-  //   console.log(doc[fieldDef.name]);
-  // });
-
+  // Set undefined and empty to null so Elasticsearch can detect those
+  // fields and set a default value. Otherwise they won't be saved and 
+  // search will fail.
   _.forEach(_.keys(doc), function(field) {
     if (_.isEmpty(doc[field]))
       doc[field] = null;
   });
 
-  index.index(indexName, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
+  // Get information related to doc on other collections
+  _.forEach(indexDef.relations, function(rel) {
+    if (rel.idField) {
+      console.log('Inverse relation');
+      var selector = {};
+      selector[rel.idField] = doc._id;
+      var fields = {};
+      fields[rel.valuePath] = 1;
+      var relItems = rel.collection.find(selector, fields).fetch();
+      doc[rel.fieldName] = _.map(relItems, function(item) {
+        var value = getValue(item, rel.valuePath.split('.'));
+        return { value: [value]};
+      });
+      console.log(doc[rel.fieldName]);
+    } else {
+      console.log('Direct relation');
+      var relItems = _.clone(doc[rel.fieldName]);
+      doc[rel.fieldName] = [];
+      _.forEach(relItems, function(relItem) {
+        var item = rel.collection.findOne({_id: relItem});
+        if (item)
+          doc[rel.fieldName].push(item[rel.valuePath]);
+      });  
+    }
+  });
+
+  index.index(Meteor.user().hierId, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
     if (!err) {
       console.log('Document indexed in ' + indexName);
       // Mark document
@@ -153,24 +137,64 @@ var indexDocument = function(indexName, collection, doc) {
   }));
 };
 
+var getValue = function(doc, path) {
+  var tmp = doc;
+  _.forEach(path, function(field) {
+    if (tmp)
+      tmp = tmp[field];
+  });
+
+  return tmp;
+};
+
 ES.syncCollection = function(options) {
   var collection = options.collection; 
   var indexName = collection._name;
 
   // Index when client is connected
-  indexedCollections.push({name: indexName, collection: collection, fields: options.fields});
+  indexedCollections.push({name: indexName, collection: collection, fields: options.fields, relations: options.relations});
 
   // Insert hook
   collection.after.insert(function(userId, doc) {
-    checkClientConnection();
     indexDocument(indexName, collection, doc);
   });
 
   // Update hook
   collection.after.update(function(userId, doc, fieldNames, modifier, options) {
-    checkClientConnection();
     indexDocument(indexName, collection, doc);
   });
+
+  // Generate update hooks for all interted relations
+  _.forEach(options.relations, function(rel) {
+    if (rel.idField) {
+      var relationIndexing = function(doc) {
+        var idFieldSplitted = rel.idField.split('.');
+        var root = idFieldSplitted[0];
+        if (_.isArray(doc[root])) {
+          var ids = _.map(doc[root], function(link) {
+            var childPath = idFieldSplitted.slice(1, idFieldSplitted.length);
+            return getValue(doc, childPath);
+          });
+        } else {
+          var ids = [getValue(doc, idFieldSplitted)];
+        }
+
+        console.log(ids);
+        var items = collection.find({_id: {$in: ids}}).fetch();        
+        _.forEach(items, function(item) {
+          indexDocument(indexName, collection, item);
+        })
+      };
+      rel.collection.after.update(function(userId, doc, fieldNames, modifier, options) {
+        console.log('Relation update hook es ' + rel.collection._name)
+        relationIndexing(doc);
+      });
+      rel.collection.after.insert(function(userId, doc) {
+        console.log('Relation insert hook es ' + rel.collection._name)
+        relationIndexing(doc);
+      });
+    }
+  }); 
 };
 
 Meteor.methods({
@@ -181,7 +205,7 @@ Meteor.methods({
 
     var async = Meteor._wrapAsync(
       Meteor.bindEnvironment(function(cb) {
-        client.search({query: query, type: index/*Meteor.user().hierId */, index: index}, function(err, result) {
+        client.search({query: query, type: Meteor.user().hierId, index: index}, function(err, result) {
           cb(err, result);
         })
       })
@@ -189,34 +213,6 @@ Meteor.methods({
 
     return async();
   },
-  'esSuggest': function(index, text) {
-    var async = Meteor._wrapAsync(
-      Meteor.bindEnvironment(function(cb) {
-        // Get suggester fields
-        client._request('/'+ index + '/_suggest', {
-            method: 'POST',
-            json: {
-              // suggest: {
-                notes : {
-                  text : text,
-                  completion : {
-                    field: 'content',
-                    "context": {
-                      "_type" : "notes",
-                      "additional_name": null
-                    }                    
-                  }
-                // }
-              }
-            } 
-          }, function(err, result) {
-            cb(err, result);
-          }
-        );
-      })
-    );
-    return async();
-  }
 });
 
 
