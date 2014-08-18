@@ -106,7 +106,8 @@ var indexDocument = function(indexName, collection, doc) {
       fields[rel.valuePath] = 1;
       var relItems = rel.collection.find(selector, fields).fetch();
       doc[rel.fieldName] = _.map(relItems, function(item) {
-        return { value: item[rel.valuePath]};
+        var value = getValue(item, rel.valuePath.split('.'));
+        return { value: [value]};
       });
       console.log(doc[rel.fieldName]);
     } else {
@@ -136,6 +137,16 @@ var indexDocument = function(indexName, collection, doc) {
   }));
 };
 
+var getValue = function(doc, path) {
+  var tmp = doc;
+  _.forEach(path, function(field) {
+    if (tmp)
+      tmp = tmp[field];
+  });
+
+  return tmp;
+};
+
 ES.syncCollection = function(options) {
   var collection = options.collection; 
   var indexName = collection._name;
@@ -161,12 +172,13 @@ ES.syncCollection = function(options) {
         var root = idFieldSplitted[0];
         if (_.isArray(doc[root])) {
           var ids = _.map(doc[root], function(link) {
-            var childPath = idFieldSplitted.slice(1, idFieldSplitted.length).join('.');
-            return link[childPath];
+            var childPath = idFieldSplitted.slice(1, idFieldSplitted.length);
+            return getValue(doc, childPath);
           });
         } else {
-          var ids = [doc[rel.idField]];
+          var ids = [getValue(doc, idFieldSplitted)];
         }
+
         console.log(ids);
         var items = collection.find({_id: {$in: ids}}).fetch();        
         _.forEach(items, function(item) {
@@ -174,9 +186,11 @@ ES.syncCollection = function(options) {
         })
       };
       rel.collection.after.update(function(userId, doc, fieldNames, modifier, options) {
+        console.log('Relation update hook es ' + rel.collection._name)
         relationIndexing(doc);
       });
       rel.collection.after.insert(function(userId, doc) {
+        console.log('Relation insert hook es ' + rel.collection._name)
         relationIndexing(doc);
       });
     }
