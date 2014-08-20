@@ -128,7 +128,7 @@ var indexDocument = function(indexName, collection, doc) {
     }
   });
 
-  index.index(Meteor.user().hierId, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
+  index.index(doc.hierId, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
     if (!err) {
       console.log('Document indexed in ' + indexName);
       // Mark document
