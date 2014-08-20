@@ -4,13 +4,19 @@ ES.syncCollection = function(options) {
   var collection = options.collection;
 
   collection.esSearch = function(searchString, cb) {
-  	var splitedSearchString = searchString.split(" ");
+  	var splitedSearchString = searchString.trim().split(" ");
     var query = {
   		bool: {
         should: [],
       }
   	};
     var q = query.bool.should;
+
+    var highlight = {
+      "pre_tags" : ["<em>"],
+      "post_tags" : ["</em>"],
+      fields: {}
+    };
 
     q.regexp = {};
 	  _.forEach(options.fields, function(field) {
@@ -23,13 +29,27 @@ ES.syncCollection = function(options) {
         regexp[field] = tokenSearch;
         q.push({regexp: regexp});
       })
+
+      // Set highlight option for all fields defined
+      highlight.fields[field] = {};
 	  });
 
     console.log(query)
-  	Meteor.call('esSearch', collection._name, query, function(err, result) {
+  	Meteor.call('esSearch', collection._name, query, highlight, function(err, result) {
   		if (!err) {
   			console.log(result);
   		}
+
+      // Renaming highlight result
+      _.forEach(result.hits, function(hit) {
+        _.forEach(hit.highlight, function(value, propertyName) {
+          var field = _.findWhere(options.fields, {name: propertyName});
+          if (field && field.label) {
+            hit.highlight[field.label] = hit.highlight[propertyName];
+            delete hit.highlight[propertyName];
+          }
+        })
+      });
 
   		cb && cb.call({}, err, result);
   	});

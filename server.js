@@ -128,7 +128,7 @@ var indexDocument = function(indexName, collection, doc) {
     }
   });
 
-  index.index(Meteor.user().hierId, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
+  index.index(doc.hierId, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
     if (!err) {
       console.log('Document indexed in ' + indexName);
       // Mark document
@@ -203,15 +203,21 @@ ES.syncCollection = function(options) {
   }); 
 };
 
+// elastical.Client.prototype._request = _.wrap(elastical.Client.prototype._request, function(fn) {
+//   console.log(arguments);
+//   console.log(this);
+//   fn.call(this, arguments[1], arguments[2], arguments[3]);
+// });
+
 Meteor.methods({
-  'esSearch': function(index, query) {
+  'esSearch': function(index, query, highlight) {
     checkClientConnection();
 
     query.bool.minimum_should_match = 1;
 
     var async = Meteor._wrapAsync(
       Meteor.bindEnvironment(function(cb) {
-        client.search({query: query, type: Meteor.user().hierId, index: index}, function(err, result) {
+        client.search({query: query, highlight: highlight, type: Meteor.user().hierId, index: index}, function(err, result) {
           cb(err, result);
         })
       })
