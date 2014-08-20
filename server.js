@@ -5,20 +5,26 @@ var client;
 var indexedCollections = [];
 
 var checkClientConnection = function() {
-  if (!client)
+  if (!client.connected)
     throw new Meteor.Error(500, 'Error connecting ES');
 };
 
 ES.connect = function(options) {
   console.log('Connecting ES')
-  client = new elastical.Client(options.host, {protocol: options.protocol, port: options.port, auth: options.auth});
-
-  checkClientConnection();
-
-  console.log('Indexing collections');
-  _.forEach(indexedCollections, function(index) {
-    indexCollection(index);    
-  })
+  client = new elastical.Client(options.host, {protocol: options.protocol || 'http', port: options.port || 9200, auth: options.auth});
+  client._request('/_cluster/health', Meteor.bindEnvironment(function(err) {
+    if (err) {
+      console.error('Error connecting to ES', err);
+      return;
+    }
+    
+    client.connected = true;
+    
+    console.log('Indexing collections');
+    _.forEach(indexedCollections, function(index) {
+      indexCollection(index);    
+    })
+  }));
 };
 
 var initialSync = function(collection, indexName) {
