@@ -5,7 +5,7 @@ var client;
 var indexedCollections = [];
 
 var checkClientConnection = function() {
-  if (!client.connected)
+  if (!client || !client.connected)
     throw new Meteor.Error(500, 'Error connecting ES');
 };
 
@@ -136,7 +136,7 @@ var indexDocument = function(indexName, collection, doc) {
         $set: {}
       };
       flag.$set['_es_' + indexName] = Date.now();
-      collection.direct.update({_id: doc._id}, flag);
+      collection.direct.update({_id: doc._id}, flag, {});
     }
     else
       console.log(err);
