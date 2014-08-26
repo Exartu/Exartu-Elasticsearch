@@ -13,8 +13,8 @@ ES.syncCollection = function(options) {
     var q = query.bool.should;
 
     var highlight = {
-      "pre_tags" : ["<em>"],
-      "post_tags" : ["</em>"],
+      "pre_tags" : ["<strong>"],
+      "post_tags" : ["</strong>"],
       fields: {}
     };
 
