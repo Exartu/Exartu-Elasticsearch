@@ -4,7 +4,7 @@ ES.syncCollection = function(options) {
   var collection = options.collection;
 
   collection.esSearch = function(searchString, cb) {
-  	var splitedSearchString = searchString.trim().split(" ");
+  	var splitedSearchString = searchString.toLowerCase().trim().split(" ");
     var query = {
   		bool: {
         should: [],
