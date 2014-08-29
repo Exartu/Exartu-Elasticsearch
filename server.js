@@ -6,7 +6,7 @@ var indexedCollections = [];
 
 var checkClientConnection = function() {
   if (!client || !client.connected)
-    throw new Meteor.Error(500, 'Error connecting ES');
+    console.error('Error connecting ES');
 };
 
 ES.connect = function(options) {
