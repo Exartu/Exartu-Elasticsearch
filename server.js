@@ -98,9 +98,12 @@ var indexDocument = function(indexName, collection, doc) {
   // fields and set a default value. Otherwise they won't be saved and 
   // search will fail.
   _.forEach(_.keys(doc), function(field) {
-    if (_.isEmpty(doc[field]))
+    if (!_.isNumber(doc[field]) && _.isEmpty(doc[field]))
       doc[field] = null;
   });
+
+  // Change dateCreated format
+  doc.dateCreated = new Date(doc.dateCreated).toJSON();
 
   // Get information related to doc on other collections
   _.forEach(indexDef.relations, function(rel) {
@@ -115,7 +118,6 @@ var indexDocument = function(indexName, collection, doc) {
         var value = getValue(item, rel.valuePath.split('.'));
         return { value: [value]};
       });
-      console.log(doc[rel.fieldName]);
     } else {
       console.log('Direct relation');
       var relItems = _.clone(doc[rel.fieldName]);
@@ -185,18 +187,15 @@ ES.syncCollection = function(options) {
           var ids = [getValue(doc, idFieldSplitted)];
         }
 
-        console.log(ids);
         var items = collection.find({_id: {$in: ids}}).fetch();        
         _.forEach(items, function(item) {
           indexDocument(indexName, collection, item);
         })
       };
       rel.collection.after.update(function(userId, doc, fieldNames, modifier, options) {
-        console.log('Relation update hook es ' + rel.collection._name)
         relationIndexing(doc);
       });
       rel.collection.after.insert(function(userId, doc) {
-        console.log('Relation insert hook es ' + rel.collection._name)
         relationIndexing(doc);
       });
     }
@@ -210,10 +209,20 @@ ES.syncCollection = function(options) {
 // });
 
 Meteor.methods({
-  'esSearch': function(index, query, highlight) {
+  'esSearch': function(index, query, filters, highlight) {
     checkClientConnection();
 
     query.bool.minimum_should_match = 1;
+
+    if (filters.bool.must.length > 0) {
+      query = {
+        filtered: {
+          query: query,
+          filter: filters
+        }
+      };
+      console.dir(query.filtered.filter.and)
+    }
 
     var async = Meteor._wrapAsync(
       Meteor.bindEnvironment(function(cb) {

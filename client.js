@@ -3,7 +3,7 @@ ES = ES || {};
 ES.syncCollection = function(options) {
   var collection = options.collection;
 
-  collection.esSearch = function(searchString, cb) {
+  collection.esSearch = function(searchString, filters, cb) {
   	var splitedSearchString = searchString.toLowerCase().trim().split(" ");
     var query = {
   		bool: {
@@ -33,9 +33,9 @@ ES.syncCollection = function(options) {
       // Set highlight option for all fields defined
       highlight.fields[field] = {};
 	  });
-
+    
     console.log(query)
-  	Meteor.call('esSearch', collection._name, query, highlight, function(err, result) {
+  	Meteor.call('esSearch', collection._name, query, filters, highlight, function(err, result) {
   		if (!err) {
   			console.log(result);
   		}
