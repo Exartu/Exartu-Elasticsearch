@@ -8,14 +8,14 @@ Npm.depends({
   "elastical": "0.0.13",
 });
 
-Package.on_use(function(api){
+Package.onUse(function(api){
 	api.use([
-    	"collection-hooks",
+    	"matb33:collection-hooks",
     	"underscore",
     ], "server");
 
-  api.add_files("server.js", "server");
-  api.add_files("client.js", "client");
+  api.addFiles("server.js", "server");
+  api.addFiles("client.js", "client");
 
-  api.export("ES");
+  api.export("ES", both);
 });
