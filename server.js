@@ -4,9 +4,13 @@ var elastical = Npm.require('elastical');
 var client;
 var indexedCollections = [];
 
-var checkClientConnection = function() {
-  if (!client || !client.connected)
+var isConnectionReady = function() {
+  if (!client || !client.connected) {
     console.error('Error connecting ES');
+    return false;
+  }
+
+  return true;
 };
 
 ES.connect = function(options) {
@@ -89,7 +93,8 @@ var getIndexedCollection = function(indexName) {
 };
 
 var indexDocument = function(indexName, collection, doc) {
-  checkClientConnection();
+  if (!isConnectionReady())
+    return;
 
   indexDef = getIndexedCollection(indexName);
   index = client.getIndex(indexName);
@@ -210,7 +215,8 @@ ES.syncCollection = function(options) {
 
 Meteor.methods({
   'esSearch': function(index, query, filters, highlight) {
-    checkClientConnection();
+    if (!isConnectionReady())
+      return;
 
     query.bool.minimum_should_match = 1;
 
