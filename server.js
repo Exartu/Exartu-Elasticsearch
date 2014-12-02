@@ -230,9 +230,13 @@ Meteor.methods({
       console.dir(query.filtered.filter.and)
     }
 
+    var userHierarchiesId = _.map(Utils.getUserHiers(Meteor.userId()), function (hier) {
+      return hier._id;
+    });
+
     var async = Meteor._wrapAsync(
       Meteor.bindEnvironment(function(cb) {
-        client.search({query: query, highlight: highlight, type: Meteor.user().hierId, index: index}, function(err, result) {
+        client.search({query: query, highlight: highlight, type: userHierarchiesId, index: index}, function(err, result) {
           cb(err, result);
         })
       })
