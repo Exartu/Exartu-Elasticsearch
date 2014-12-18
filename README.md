@@ -29,7 +29,7 @@ ES.syncCollection({
 ```
 
 **ES.syncCollection**  
-Used to specify collections that are being syncronized with the Elasticsearch server
+Used to specify collections that are being synchronized with the Elasticsearch server
 
   - *Fields:* define which fields are goint to be considered when performing a Elasticsearch query.
       - *name:* field's path.
@@ -50,7 +50,7 @@ Collection.esSearch('something to search', filter, function (err, result) {
 ```
 
 **esSearch** 
-It's a method defined on each collection syncronized with *ES.syncCollection*.
+It's a method defined on each collection synchronized with *ES.syncCollection*.
 Parameters:
   - *searchString:* string used to create the query.
   - *filter:* Use the same syntax as Elasticsearch ([check it here](http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/query-dsl-filters.html "ES doc")). For instance: filter by hierId
