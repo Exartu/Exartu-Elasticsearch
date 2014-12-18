@@ -58,6 +58,6 @@ Parameters:
 
 
 # TODO
-  - Easier way to define filters in client side.
+  - Easier way to define filters on client side.
   - Find a better way to separate hieararchies data.
 
