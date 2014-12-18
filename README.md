@@ -54,5 +54,10 @@ It's a method defined on each collection syncronized with *ES.syncCollection*.
 Parameters:
   - *searchString:* string used to create the query.
   - *filter:* Use the same syntax as Elasticsearch ([check it here](http://www.elasticsearch.org/guide/en/elasticsearch/reference/current/query-dsl-filters.html "ES doc")). For instance: filter by hierId
-  - *callback*: function called with two parameters, error and result. Error specify if somthing goes wrong. Result is an array with the result from elasticsearch and some useful information about the search for each hit, for instance, it highlightes where the search string was found for each fields that match.   
+  - *callback*: function called with two parameters, error and result. Error specify if somthing goes wrong. Result is an array with the result from elasticsearch and some useful information about the search for each hit, for instance, it highlightes where the search string was found for each fields that match.
+
+
+# TODO
+  - Esier way to define filters in client side.
+  - Find a better way to separate hieararchies data.
 
