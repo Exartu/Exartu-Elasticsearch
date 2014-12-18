@@ -8,40 +8,40 @@ ES = ES || {};
 //   on the specified collection are considered when performing a search.
 //   - relation {Array} Specifies where and how to fetch information related to
 //   the document.
-ES.syncCollection = function(options) {
+ES.syncCollection = function (options) {
   var collection = options.collection;
 
   // Create query and filter and then call Meteor method 'esSearch'
   // @param searchString {String} string used to perform the search on Elasticsearch
   // @param filters {Object} filter defined by the user using Elasticsearch query syntax
   // @param cb {Function} function called when result is ready
-  collection.esSearch = function(searchString, filters, cb) {
+  collection.esSearch = function (searchString, filters, cb) {
     // Split string by space in order to search all words typed
-  	var splitedSearchString = searchString.toLowerCase().trim().split(" ");
+    var splitedSearchString = searchString.toLowerCase().trim().split(" ");
 
     // Create query object using bool query to combine multiple queries
     var query = {
-  		bool: {
+      bool: {
         should: []
       }
-  	};
+    };
     var q = query.bool.should;
 
     // Define object to highlight search results on one or more fields
     var highlight = {
-      "pre_tags" : ["<strong>"],
-      "post_tags" : ["</strong>"],
+      "pre_tags": ["<strong>"],
+      "post_tags": ["</strong>"],
       fields: {}
     };
 
     // Define query using splitted string and only considering fields that were specified
     q.regexp = {};
-	  _.forEach(options.fields, function(field) {
+    _.forEach(options.fields, function (field) {
       if (_.isObject(field)) {
         field = field.name;
       }
 
-      _.forEach(splitedSearchString, function(tokenSearch) {
+      _.forEach(splitedSearchString, function (tokenSearch) {
         var regexp = {};
         regexp[field] = tokenSearch;
         q.push({regexp: regexp});
@@ -49,17 +49,17 @@ ES.syncCollection = function(options) {
 
       // Set highlight option for all fields defined
       highlight.fields[field] = {};
-	  });
+    });
 
     // Call server side method 'esSearch' using collection name as the index name
-  	Meteor.call('esSearch', collection._name, query, filters, highlight, function(err, result) {
-  		if (!err) {
-  			console.log(result);
-  		}
+    Meteor.call('esSearch', collection._name, query, filters, highlight, function (err, result) {
+      if (!err) {
+        console.log(result);
+      }
 
       // Renaming highlight result
-      _.forEach(result.hits, function(hit) {
-        _.forEach(hit.highlight, function(value, propertyName) {
+      _.forEach(result.hits, function (hit) {
+        _.forEach(hit.highlight, function (value, propertyName) {
           var field = _.findWhere(options.fields, {name: propertyName});
           if (field && field.label) {
             hit.highlight[field.label] = hit.highlight[propertyName];
@@ -68,7 +68,7 @@ ES.syncCollection = function(options) {
         })
       });
 
-  		cb && cb.call({}, err, result);
-  	});
+      cb && cb.call({}, err, result);
+    });
   };
 };
