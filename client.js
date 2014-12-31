@@ -57,6 +57,9 @@ ES.syncCollection = function (options) {
         console.log(result);
       }
 
+      // Set result to empty object if it's not defined
+      if (!result)  { result = { hits: [] } };
+
       // Renaming highlight result
       _.forEach(result.hits, function (hit) {
         _.forEach(hit.highlight, function (value, propertyName) {
