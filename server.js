@@ -30,7 +30,7 @@ ES.connect = function(options) {
     // Now that connection with server is ready all collection defined are sync.
     console.log('Indexing collections');
     _.forEach(_indexedCollections, function(index) {
-      indexCollection(index);    
+      indexCollection(index);
     })
   }));
 
@@ -51,10 +51,11 @@ ES.connect = function(options) {
               console.log("Index created ", result);
             }
             else
-              console.log(err);
+              console.log('index creation error',err,index);
           });
         }
       }
+      else console.log('index exists error',err);
     }));
   };
 };
@@ -192,11 +193,10 @@ ES.syncCollection = function(options) {
         });
       }
     });
-
+    console.log('es doc',doc);
     // Index document using its hierId as its type
     index.index(doc.hierId, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
       if (!err) {
-        console.log('Document indexed in ' + indexName);
         // Mark document
         var flag = {
           $set: {}
@@ -205,7 +205,7 @@ ES.syncCollection = function(options) {
         collection.direct.update({_id: doc._id}, flag, {});
       }
       else
-        console.log(err);
+        console.log('index document error',err);
     }));
   }
 };
@@ -235,10 +235,11 @@ Meteor.methods({
     var userHierarchiesId = _.map(Utils.getUserHiers(Meteor.userId()), function (hier) {
       return hier._id;
     });
+    var hierid=Utils.getUserHierId(Meteor.userId())
 
     var async = Meteor._wrapAsync(
       Meteor.bindEnvironment(function(cb) {
-        _client.search({query: query, highlight: highlight, type: userHierarchiesId, index: indexName}, function(err, result) {
+        _client.search({query: query, highlight: highlight, type: [hierid], index: indexName}, function(err, result) {
           cb(err, result);
         })
       })
@@ -259,7 +260,7 @@ var isConnectionReady = function() {
   return true;
 };
 
-// Fetch all document in collaction that haven't been indexed yet and uploaded them
+// Fetch all document in collection that haven't been indexed yet and uploaded them
 // to Elasticsearch server.
 // @param collection {Mongo.Collection} Collection to be synchronized
 // @param indexName {String} Name of the index where collection will be synchronized
@@ -270,6 +271,7 @@ var initialSync = function(collection, indexName) {
   // Generate bulk's operation
   var operations = [];
   _.forEach(documents, function(document) {
+    if (!document.hierId) console.log('es document no hier',document);
     if (document['_es_' + indexName])
       return; // Already indexed
 
@@ -301,7 +303,7 @@ var initialSync = function(collection, indexName) {
       flag.$set['_es_' + indexName] = Date.now();
       collection.update({_id: {$in: documentIds}}, flag, {multi: true});
     } else
-      console.log(err);  
+      console.log('es bulk ops',err,result);
   }));
 };
 
