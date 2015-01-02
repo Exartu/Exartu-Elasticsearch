@@ -236,8 +236,16 @@ Meteor.methods({
       return hier._id;
     });
 
+    var async = Meteor._wrapAsync(
+      Meteor.bindEnvironment(function(cb) {
+        _client.search({query: query, highlight: highlight, type: userHierarchiesId, index: indexName}, function(err, result) {
+          cb(err, result);
+        })
+      })
+    );
+
     // Return Elasticsearch result asynchronously
-    return Meteor.wrapAsync(_client.search, {query: query, highlight: highlight, type: userHierarchiesId, index: indexName});
+    return async();
   }
 });
 
