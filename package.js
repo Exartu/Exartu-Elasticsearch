@@ -1,5 +1,8 @@
 Package.describe({
-  summary: "ES"
+  name: 'aida:es',
+  summary: "ES",
+  version: '0.1.0',
+  git: 'https://github.com/Exartu/Exartu-Elasticsearch.git'
 });
 
 var both = ["client", "server"];
@@ -9,8 +12,9 @@ Npm.depends({
 });
 
 Package.onUse(function(api){
-	api.use([
-    	"matb33:collection-hooks",
+   api.versionsFrom('METEOR@0.9.2');
+   api.use([
+    	"matb33:collection-hooks@0.7.7",
     	"underscore",
     ], "server");
 
