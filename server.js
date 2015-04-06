@@ -240,7 +240,7 @@ Meteor.methods({
 
     var async = Meteor._wrapAsync(
       Meteor.bindEnvironment(function(cb) {
-        _client.search({query: query, highlight: highlight, type: [hierid], index: indexName}, function(err, result) {
+        _client.search({query: query, size: 25, highlight: highlight, type: [hierid], index: indexName}, function(err, result) {
           cb(err, result);
         })
       })
