@@ -194,7 +194,6 @@ ES.syncCollection = function(options) {
       }
     });
     doc.idField=doc._id; // make the id field searchable as well
-    console.log('es doc',doc);
     // Index document using its hierId as its type
     index.index(doc.hierId, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
       if (!err) {
