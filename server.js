@@ -166,9 +166,6 @@ ES.syncCollection = function(options) {
         doc[field] = null;
     });
 
-    // Change dateCreated format to one accepted by Elasticsearch
-    doc.dateCreated = new Date(doc.dateCreated).toJSON();
-
     // Get information related to doc on other collections
     _.forEach(indexDef.relations, function(rel) {
       if (rel.idField) {
