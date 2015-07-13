@@ -37,20 +37,28 @@ ES.syncCollection = function (options) {
     // Define query using splitted string and only considering fields that were specified
     q.regexp = {};
     _.forEach(options.fields, function (field) {
+      var boost = undefined;
       if (_.isObject(field)) {
+        boost = field.boost;
         field = field.name;
       }
 
       _.forEach(splitedSearchString, function (tokenSearch) {
         var regexp = {};
-        regexp[field] = tokenSearch;
+
+        if(boost){
+          regexp[field] = {value: tokenSearch, boost: boost};
+        }
+        else {
+          regexp[field] = tokenSearch;
+        }
         q.push({regexp: regexp});
       });
 
       // Set highlight option for all fields defined
       highlight.fields[field] = {};
     });
-
+    debugger;
     // Call server side method 'esSearch' using collection name as the index name
     Meteor.call('esSearch', collection._name, query, filters, highlight, function (err, result) {
       if (!err) {
