@@ -15,7 +15,11 @@ ES.connect = function(options) {
   console.log('Connecting ES');
 
   // Create connection
-  _client = new elastical.Client(options.host, {protocol: options.protocol || 'http', port: options.port || 9200, auth: options.auth});
+  if (options.host){
+    _client = new elastical.Client(options.host, {protocol: options.protocol || 'http', port: options.port || 9200, auth: options.auth});
+  }else{
+    _client = new elastical.Client();
+  }
 
   // Check connection
   _client._request('/_cluster/health', Meteor.bindEnvironment(function(err) {
@@ -49,6 +53,7 @@ ES.connect = function(options) {
           _client.createIndex(index.name, function(err, result) {
             if (!err) {
               console.log("Index created ", result);
+              initialSync(index.collection, index.name);
             }
             else
               console.log('index creation error',err,index);
@@ -192,6 +197,7 @@ ES.syncCollection = function(options) {
     });
     doc.idField=doc._id; // make the id field searchable as well
     // Index document using its hierId as its type
+    console.log('indexing doc');
     index.index(doc.hierId, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
       if (!err) {
         // Mark document
@@ -286,6 +292,7 @@ var initialSync = function(collection, indexName) {
   if (!operations || operations.length == 0)
     return;
 
+  console.log('calling es bulk');
   _client.bulk(operations, Meteor.bindEnvironment(function(err, result) {
     if (!err) {
       // Get documents' id of those indexed in the bulk
@@ -298,7 +305,7 @@ var initialSync = function(collection, indexName) {
         $set: {}
       };
       flag.$set['_es_' + indexName] = Date.now();
-      collection.update({_id: {$in: documentIds}}, flag, {multi: true});
+      collection.direct.update({_id: {$in: documentIds}}, flag, {multi: true});
     } else
       console.log('es bulk ops',err,result);
   }));
