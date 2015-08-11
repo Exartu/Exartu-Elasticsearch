@@ -42,6 +42,38 @@ ES.connect = function(options) {
   // @param index {Object}
   function indexCollection (index) {
     console.log('Index name: ' + index.name);
+
+    var options = getIndexedCollection(index.name);
+
+
+    // build mappings
+    var props = {
+      properties: {}
+    };
+    _.each(options.fields, function (field) {
+      if (field.mapping){
+        var parts = field.name.split('.');
+        var current = props.properties;
+
+        if (parts.length > 1){
+          for(var i=0; i<= parts.length -2; ++i){
+            current[parts[i]] = current[parts[i]] || {
+              properties: {}
+            };
+            current = current[parts[i]].properties;
+          }
+        }
+        current[parts[parts.length-1]] = field.mapping;
+      }
+    });
+    _.each(options.relations, function (relation) {
+      if (relation.mapping){
+        props.properties[relation.fieldName] = relation.mapping;
+      }
+    });
+
+    var mappings = {};
+    mappings[options.type] = props;
     _client.indexExists(index.name, Meteor.bindEnvironment(function(err, result) {
       if (!err) {
         if (result) {
