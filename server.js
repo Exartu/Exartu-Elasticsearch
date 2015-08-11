@@ -305,13 +305,21 @@ var map = function (object, fields) {
     var parts = field.name.split('.');
     var currentResult = result;
     var currentDoc = object;
+    var notSet = false;
     if (parts.length >1){
       // move currentResult and currentDoc deeper
       for(var i = 0;i <= parts.length - 2; ++i){
-        currentResult[parts[i]] = currentResult[parts[i]] || {};
-        currentResult = currentResult[parts[i]];
-        currentDoc = currentDoc && currentDoc[parts[i]];
+        if(currentDoc[parts[i]] !== undefined){
+          currentResult[parts[i]] = currentResult[parts[i]] || {};
+          currentResult = currentResult[parts[i]];
+          currentDoc = currentDoc && currentDoc[parts[i]];
+        }else{
+          notSet = true;
+        }
       }
+    }
+    if (notSet){
+      return;
     }
     //set the value
     var value = currentDoc && currentDoc[parts[parts.length - 1]];
