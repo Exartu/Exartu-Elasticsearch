@@ -1,14 +1,14 @@
 Package.describe({
   name: 'aida:es',
   summary: "ES",
-  version: '0.2.',
+  version: '0.2.1',
   git: 'https://github.com/Exartu/Exartu-Elasticsearch.git'
 });
 
 var both = ["client", "server"];
 
 Npm.depends({
-  "elastical": "0.0.13",
+  "elastical": "0.0.13"
 });
 
 Package.onUse(function(api){
