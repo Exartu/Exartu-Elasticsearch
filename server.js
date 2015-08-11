@@ -45,12 +45,12 @@ ES.connect = function(options) {
     _client.indexExists(index.name, Meteor.bindEnvironment(function(err, result) {
       if (!err) {
         if (result) {
-          console.log('Loading ' + index.name + ' index')
+          console.log('initialSync ' + index.name + ' index');
           initialSync(index.collection, index.name);
         }
         else {
-          console.log('Creating ' + index.name + ' index')
-          _client.createIndex(index.name, function(err, result) {
+          console.log('Creating ' + index.name + ' index', mappings);
+          _client.createIndex(index.name, mappings, function(err, result) {
             if (!err) {
               console.log("Index created ", result);
               initialSync(index.collection, index.name);
@@ -71,15 +71,22 @@ ES.connect = function(options) {
 //    - collection {Mongo.Collection} Collection that is synchronized.
 //    - fields {Array} Objects that defined which fields from the document
 //    on the specified collection are considered when performing a search.
+//      each field must have 'name' which represents the path to the property in mongo
+//      each field can have 'label' used for highlighting results
+//                          'search' if set to false this field won't be used to search
+//                          'mapping' the elasticsearch mappings associated with this field
+//                          'transform' a function that receives the value found in the path (name) for a doc
+//                              and should return a value
 //    - relation {Array} Specifies where and how to fetch information related to
 //    the document.
 ES.syncCollection = function(options) {
   var collection = options.collection;
-  var indexName = collection._name;
+  var indexName = options.indexName || collection._name;
+  var type = options.type || collection._name;
 
   // Save sync information, when ES connection is ready this information is used
   // to sync documents that have not been synchronized before in this index (each collection has its index)
-  _indexedCollections.push({name: indexName, collection: collection, fields: options.fields, relations: options.relations});
+  _indexedCollections.push({name: indexName, collection: collection, fields: options.fields, relations: options.relations, type: type});
 
   // Define collection's hook to keep track of changes in documents
   // When a document is inserted it's synchronized on ES and a flag is set
@@ -90,7 +97,6 @@ ES.syncCollection = function(options) {
 
   //
   collection.after.update(function(userId, doc) {
-    // TODO: make update more granular, only update values that have changed
     indexDocument(indexName, collection, doc);
   });
 
@@ -134,7 +140,6 @@ ES.syncCollection = function(options) {
 
       // Keep track of changes in data related to the document
       rel.collection.after.update(function(userId, doc) {
-        // TODO: make update more granular, only update values that have changed
         relationIndexing(doc);
       });
       rel.collection.after.insert(function(userId, doc) {
@@ -198,7 +203,7 @@ ES.syncCollection = function(options) {
     doc.idField=doc._id; // make the id field searchable as well
     // Index document using its hierId as its type
     console.log('indexing doc');
-    index.index(doc.hierId, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
+    index.index(type, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
       if (!err) {
         // Mark document
         var flag = {
@@ -233,16 +238,12 @@ Meteor.methods({
         }
       };
     }
+    var options = getIndexedCollection(indexName);
 
-    // Get user's hierarchies and use them to filter documents' type
-    var userHierarchiesId = _.map(Utils.getUserHiers(Meteor.userId()), function (hier) {
-      return hier._id;
-    });
-    var hierid=Utils.getUserHierId(Meteor.userId())
 
     var async = Meteor._wrapAsync(
       Meteor.bindEnvironment(function(cb) {
-        _client.search({query: query, size: 25, highlight: highlight, type: [hierid], index: indexName}, function(err, result) {
+        _client.search({query: query, size: 25, highlight: highlight, type: options.type, index: indexName}, function(err, result) {
           cb(err, result);
         })
       })
@@ -281,7 +282,7 @@ var initialSync = function(collection, indexName) {
     // Define operation
     var op = {
       index: indexName,
-      type: document.hierId,
+      type: options.type,
       id: document._id,
       data: document
     };
