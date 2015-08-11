@@ -314,7 +314,8 @@ var map = function (object, fields) {
       }
     }
     //set the value
-    currentResult[parts[parts.length - 1]] = currentDoc && currentDoc[parts[parts.length - 1]];
+    var value = currentDoc && currentDoc[parts[parts.length - 1]];
+    currentResult[parts[parts.length - 1]] = field.transform ? field.transform(value) : value;
   });
   return result;
 };
