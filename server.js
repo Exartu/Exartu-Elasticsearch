@@ -82,7 +82,7 @@ ES.connect = function(options) {
         }
         else {
           console.log('Creating ' + index.name + ' index', mappings);
-          _client.createIndex(index.name, mappings, function(err, result) {
+          _client.createIndex(index.name, {mappings: mappings}, function(err, result) {
             if (!err) {
               console.log("Index created ", result);
               initialSync(index.collection, index.name);
