@@ -168,6 +168,12 @@ ES.syncCollection = function(options) {
     var indexDef = getIndexedCollection(indexName);
     var index = _client.getIndex(indexName);
 
+    var options = getIndexedCollection(indexName);
+
+
+    //map document
+    doc = map(doc, options.fields);
+
     // Set undefined and empty to null so Elasticsearch can detect those
     // fields and set a default value. Otherwise they won't be saved and
     // search will fail.
@@ -200,8 +206,8 @@ ES.syncCollection = function(options) {
         });
       }
     });
-    doc.idField=doc._id; // make the id field searchable as well
-    // Index document using its hierId as its type
+    doc.idField = doc._id; // make the id field searchable as well
+    // Index document using its type as its type
     console.log('indexing doc');
     index.index(type, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
       if (!err) {
@@ -254,6 +260,26 @@ Meteor.methods({
   }
 });
 
+var map = function (object, fields) {
+  var result = {};
+  _.each(fields, function (field) {
+    var parts = field.name.split('.');
+    var currentResult = result;
+    var currentDoc = object;
+    if (parts.length >1){
+      // move currentResult and currentDoc deeper
+      for(var i = 0;i <= parts.length - 2; ++i){
+        currentResult[parts[i]] = currentResult[parts[i]] || {};
+        currentResult = currentResult[parts[i]];
+        currentDoc = currentDoc && currentDoc[parts[i]];
+      }
+    }
+    //set the value
+    currentResult[parts[parts.length - 1]] = currentDoc && currentDoc[parts[parts.length - 1]];
+  });
+  return result;
+};
+
 // Helper used to check the connection
 var isConnectionReady = function() {
   if (!_client || !_client.connected) {
@@ -272,6 +298,8 @@ var initialSync = function(collection, indexName) {
   // Initial sync. Index all document not indexed on this index
   var documents = collection.find().fetch();
 
+  var options = getIndexedCollection(indexName);
+
   // Generate bulk's operation
   var operations = [];
   _.forEach(documents, function(document) {
@@ -284,7 +312,7 @@ var initialSync = function(collection, indexName) {
       index: indexName,
       type: options.type,
       id: document._id,
-      data: document
+      data: map(document, options.fields)
     };
 
     operations.push({index: op});
