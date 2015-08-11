@@ -267,6 +267,13 @@ Meteor.methods({
     // At least on of the criteria defined in should must be true
     query.bool.minimum_should_match = 1;
 
+    var hierid = Utils.getUserHierId(Meteor.userId());
+
+    filters = filters || {};
+    filters.bool = filters.bool || {};
+    filters.bool.must = filters.bool.must || [];
+    filters.bool.must.push({term: {hierId: hierid}});
+
     // Change query format if filters are defined
     if (filters.bool.must.length > 0) {
       query = {
