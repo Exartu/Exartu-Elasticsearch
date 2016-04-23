@@ -15,7 +15,8 @@ ES.syncCollection = function (options) {
   // @param searchString {String} string used to perform the search on Elasticsearch
   // @param filters {Object} filter defined by the user using Elasticsearch query syntax
   // @param cb {Function} function called when result is ready
-  collection.esSearch = function (searchString, filters, cb) {
+  collection.esSearch = function (searchString, filters, numRows, cb) {
+    if (!numRows) numRows=25;
     // Split string by space in order to search all words typed
     var splitedSearchString = searchString.toLowerCase().trim().split(" ");
 
@@ -62,7 +63,7 @@ ES.syncCollection = function (options) {
       highlight.fields[field] = {};
     });
     // Call server side method 'esSearch' using collection name as the index name
-    Meteor.call('esSearch', options.indexName, query, filters, highlight, function (err, result) {
+    Meteor.call('esSearch', options.indexName, query, filters, highlight,numRows, function (err, result) {
       if (!err) {
         //console.log(result);
       }
