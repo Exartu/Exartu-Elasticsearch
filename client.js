@@ -65,9 +65,10 @@ ES.syncCollection = function (options) {
       _.forEach(splitedSearchString, function (tokenSearch) {
         var regexp = {};
 
+        // add support to not_analyzed fields, this can only be matched be the same value so regex is not an option here
         if  (fieldObj.mapping && fieldObj.mapping.type === 'string' && fieldObj.mapping.index === "not_analyzed" ){
-
           if(boost){
+            // todo: boost and match?
             regexp[field] = searchString;
           } else {
             regexp[field] = searchString;
