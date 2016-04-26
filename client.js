@@ -55,6 +55,7 @@ ES.syncCollection = function (options) {
       if (field.search === false){
         return;
       }
+      var fieldObj = field;
       var boost = undefined;
       if (_.isObject(field)) {
         boost = field.boost;
@@ -64,13 +65,24 @@ ES.syncCollection = function (options) {
       _.forEach(splitedSearchString, function (tokenSearch) {
         var regexp = {};
 
-        if(boost){
-          regexp[field] = {value: tokenSearch, boost: boost};
+        if  (fieldObj.mapping && fieldObj.mapping.type === 'string' && fieldObj.mapping.index === "not_analyzed" ){
+
+          if(boost){
+            regexp[field] = searchString;
+          } else {
+            regexp[field] = searchString;
+          }
+          q.push({ match: regexp });
+        }else{
+          tokenSearch = '.*' + tokenSearch + '.*';
+          if(boost){
+            regexp[field] = {value: tokenSearch, boost: boost};
+          }
+          else {
+            regexp[field] = tokenSearch;
+          }
+          q.push({regexp: regexp});
         }
-        else {
-          regexp[field] = tokenSearch;
-        }
-        q.push({regexp: regexp});
       });
 
       // Set highlight option for all fields defined
