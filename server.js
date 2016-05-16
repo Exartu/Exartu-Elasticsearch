@@ -271,11 +271,11 @@ Meteor.methods({
     var readHierarchies=Utils.getUserReadHierarchies(this.userId);
     filters = filters || {};
     filters.bool = filters.bool || {};
-    filters.bool.must = filters.bool.must || [];
-    filters.bool.must.push({term: {hierId: {$in:readHierarchies}}});
+    filters.bool.should = filters.bool.should || [];
+    _.each(readHierarchies, function (hier) {  filters.bool.should.push({term: {hierId: hier}}); });
 
     // Change query format if filters are defined
-    if (filters.bool.must.length > 0) {
+    if (filters.bool.should.length > 0) {
       query = {
         filtered: {
           query: query,
