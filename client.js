@@ -18,8 +18,8 @@ ES.syncCollection = function (options) {
   collection.esSearch = function (searchString, filters, pagingOptions, cb) {
     // handle arguments.. support be called without options
     if (arguments.length === 3){
-      cb = options;
-      options = null;
+      cb = pagingOptions;
+      pagingOptions = null;
     }
     if (!_.isFunction(cb)){
       cb = function () {};
