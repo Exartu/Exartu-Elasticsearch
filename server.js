@@ -238,7 +238,7 @@ ES.syncCollection = function(options) {
     });
     doc.idField = doc._id; // make the id field searchable as well
     // Index document using its type as its type
-    console.log('indexing doc', doc);
+/*    console.log('indexing doc', doc);*/
     index.index(type, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
       if (!err) {
         // Mark document
