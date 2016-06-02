@@ -202,13 +202,14 @@ ES.syncCollection = function(options) {
     var options = getIndexedCollection(indexName);
 
     //map document
+
     doc = map(doc, options.fields);
 
     // Set undefined and empty to null so Elasticsearch can detect those
     // fields and set a default value. Otherwise they won't be saved and
     // search will fail.
     _.forEach(_.keys(doc), function(field) {
-      if (!_.isNumber(doc[field]) && !_.isDate(doc[field]) && _.isEmpty(doc[field]))
+      if (!_.isBoolean(doc[field]) && !_.isNumber(doc[field]) && !_.isDate(doc[field]) && _.isEmpty(doc[field]))
         doc[field] = null;
     });
 
@@ -238,7 +239,7 @@ ES.syncCollection = function(options) {
     });
     doc.idField = doc._id; // make the id field searchable as well
     // Index document using its type as its type
-/*    console.log('indexing doc', doc);*/
+
     index.index(type, doc, { id: doc._id }, Meteor.bindEnvironment(function (err, result) {
       if (!err) {
         // Mark document
