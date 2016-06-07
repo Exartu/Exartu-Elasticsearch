@@ -287,7 +287,7 @@ Meteor.methods({
 
     var async = Meteor._wrapAsync(
       Meteor.bindEnvironment(function(cb) {
-        _client.search({query: query, size: pagingOptions.limit, from: pagingOptions.skip, highlight: highlight, type: options.type, index: indexName}, function(err, result) {
+        _client.search({query: query, size: pagingOptions.limit, from: pagingOptions.skip, highlight: highlight, type: type, index: indexName}, function(err, result) {
           cb(err, result);
         })
       })
