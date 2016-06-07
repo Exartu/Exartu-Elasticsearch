@@ -81,14 +81,14 @@ ES.connect = function(options) {
         }
         else {
           console.log('Creating ' + index.name + ' index', mappings);
-          _client.createIndex(index.name, {mappings: mappings}, function(err, result) {
+          _client.createIndex(index.name, {mappings: mappings}, Meteor.bindEnvironment(function(err, result) {
             if (!err) {
               console.log("Index created ", result);
               initialSync(index.collection, index.name);
             }
             else
               console.log('index creation error',err,index);
-          });
+          }));
         }
       }
       else console.log('index exists error',err);
