@@ -90,7 +90,8 @@ ES.syncCollection = function (options) {
       highlight.fields[field] = {};
     });
     // Call server side method 'esSearch' using collection name as the index name
-    Meteor.call('esSearch', options.indexName, query, filters, highlight, pagingOptions, function (err, result) {
+
+    Meteor.call('esSearch', options.indexName, options.type, query, filters, highlight, pagingOptions, function (err, result) {
       if (!err) {
         //console.log(result);
       }

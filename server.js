@@ -33,6 +33,7 @@ ES.connect = function(options) {
     // Now that connection with server is ready all collection defined are sync.
     console.log('Indexing collections');
     _.forEach(_indexedCollections, function(index) {
+      //console.log('collection?',index);
       indexCollection(index);
     })
   }));
@@ -41,10 +42,7 @@ ES.connect = function(options) {
   // @param index {Object}
   function indexCollection (index) {
     console.log('Index name: ' + index.name);
-
-    var options = getIndexedCollection(index.name);
-
-
+    var options = getIndexedCollection(index.name, index.type);
     // build mappings
     var props = {
       properties: {}
@@ -77,14 +75,14 @@ ES.connect = function(options) {
       if (!err) {
         if (result) {
           console.log('initialSync ' + index.name + ' index');
-          initialSync(index.collection, index.name);
+          initialSync(index.collection, index.name, index.type);
         }
         else {
           console.log('Creating ' + index.name + ' index', mappings);
           _client.createIndex(index.name, {mappings: mappings}, function(err, result) {
             if (!err) {
               console.log("Index created ", result);
-              initialSync(index.collection, index.name);
+              initialSync(index.collection, index.name, index.type);
             }
             else
               console.log('index creation error',err,index);
@@ -123,12 +121,12 @@ ES.syncCollection = function(options) {
   // When a document is inserted it's synchronized on ES and a flag is set
   // to avoid duplicated indexation
   collection.after.insert(function(userId, doc) {
-    indexDocument(indexName, collection, doc);
+    indexDocument(indexName, options.type, collection, doc);
   });
 
   //
   collection.after.update(function(userId, doc) {
-    indexDocument(indexName, collection, doc);
+    indexDocument(indexName, options.type, collection, doc);
   });
 
   // TODO: Add delete hook
@@ -165,7 +163,7 @@ ES.syncCollection = function(options) {
 
         // and then reindex each of them
         _.forEach(items, function(item) {
-          indexDocument(indexName, collection, item);
+          indexDocument(indexName,options.type, collection, item);
         })
       };
 
@@ -192,14 +190,14 @@ ES.syncCollection = function(options) {
   // @param indexName {String} Where the document is being indexed
   // @param collection {Mongo.Collection} Doc's collection
   // @param doc {Object} Document that is going to be indexed
-  function indexDocument(indexName, collection, doc) {
+  function indexDocument(indexName, type, collection, doc) {
     if (!isConnectionReady())
       return;
 
-    var indexDef = getIndexedCollection(indexName);
+    var indexDef = getIndexedCollection(indexName, type);
     var index = _client.getIndex(indexName);
 
-    var options = getIndexedCollection(indexName);
+    var options = getIndexedCollection(indexName, type);
 
     //map document
 
@@ -259,7 +257,7 @@ Meteor.methods({
   // Method called by collections' extended method 'esSearch' in client side.
   // It performs a search on Elasticsearch server and return the result to client side
   // @param indexName {String} Index's name where search will be performed
-  'esSearch': function(indexName, query, filters, highlight, pagingOptions) {
+  'esSearch': function(indexName, type, query, filters, highlight, pagingOptions) {
     if (!_.isObject(pagingOptions)) pagingOptions = {};
     if (pagingOptions.limit === undefined) pagingOptions.limit = 25;
     if (pagingOptions.skip === undefined) pagingOptions.skip = 0;
@@ -284,7 +282,7 @@ Meteor.methods({
         }
       };
     }
-    var options = getIndexedCollection(indexName);
+    var options = getIndexedCollection(indexName, type);
 
 
     var async = Meteor._wrapAsync(
@@ -343,11 +341,10 @@ var isConnectionReady = function() {
 // to Elasticsearch server.
 // @param collection {Mongo.Collection} Collection to be synchronized
 // @param indexName {String} Name of the index where collection will be synchronized
-var initialSync = function(collection, indexName) {
+var initialSync = function(collection, indexName, type) {
   // Initial sync. Index all document not indexed on this index
   var documents = collection.find().fetch();
-
-  var options = getIndexedCollection(indexName);
+  var options = getIndexedCollection(indexName, type);
 
   // Generate bulk's operation
   var operations = [];
@@ -391,8 +388,13 @@ var initialSync = function(collection, indexName) {
 
 // Helper used to fetch information about index synchronizations by their indexName
 // @param indeName {String}
-var getIndexedCollection = function(indexName) {
-  return _.findWhere(_indexedCollections, {name: indexName});
+var getIndexedCollection = function(indexName, type) {
+  if(type) {
+    return _.findWhere(_indexedCollections, {name: indexName, 'type': type});
+  }
+  else{
+    return _.findWhere(_indexedCollections, {name: indexName});
+  }
 };
 
 // Helper function used to get the value from field with path 'path' on doc
