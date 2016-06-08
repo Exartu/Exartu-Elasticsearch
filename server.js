@@ -42,12 +42,12 @@ ES.connect = function(options) {
   function createIndexMappings(indexName) {
     _client.indexExists(indexName, Meteor.bindEnvironment(function (err, result) {
       if (!err) {
+        var collections = _.filter(_indexedCollections, function (collection) {
+          return collection.name == indexName;
+        });
+
         if (!result) {
           var mappings = {};
-
-          var collections = _.filter(_indexedCollections, function (collection) {
-            return collection.name == indexName;
-          });
 
           _.each(collections, function (collection) {
             // Build mappings
@@ -91,6 +91,12 @@ ES.connect = function(options) {
               console.log('index creation error', err, index);
             }
           }));
+        } else {
+          // Sync collections
+          console.log('Indexing collections');
+          _.each(collections, function(collection) {
+            initialSync(collection.collection, collection.name, collection.type);
+          })
         }
       }
       else console.log('index exists error', err);
