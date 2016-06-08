@@ -30,68 +30,72 @@ ES.connect = function(options) {
     // Mark client as connection if server is healthy
     _client.connected = true;
 
-    // Now that connection with server is ready all collection defined are sync.
-    console.log('Indexing collections');
-    _.forEach(_indexedCollections, function(index) {
-      //console.log('collection?',index);
-      indexCollection(index);
-    })
+    // Create the different indexes and mappings
+    var indexes = _.uniq(_.pluck(_indexedCollections, 'name'));
+    _.each(indexes, function (indexName) {
+      createIndexMappings(indexName);
+    });
   }));
 
-  // Create an index for the collection
-  // @param index {Object}
-  function indexCollection (index) {
-    console.log('Index name: ' + index.name);
-    var options = getIndexedCollection(index.name, index.type);
-    // build mappings
-    var props = {
-      properties: {}
-    };
-    _.each(options.fields, function (field) {
-      if (field.mapping){
-        var parts = field.name.split('.');
-        var current = props.properties;
 
-        if (parts.length > 1){
-          for(var i=0; i<= parts.length -2; ++i){
-            current[parts[i]] = current[parts[i]] || {
-              properties: {}
-            };
-            current = current[parts[i]].properties;
-          }
-        }
-        current[parts[parts.length-1]] = field.mapping;
-      }
-    });
-    _.each(options.relations, function (relation) {
-      if (relation.mapping){
-        props.properties[relation.fieldName] = relation.mapping;
-      }
-    });
-
-    var mappings = {};
-    mappings[options.type] = props;
-    _client.indexExists(index.name, Meteor.bindEnvironment(function(err, result) {
+  // Create an index and mappings
+  function createIndexMappings(indexName) {
+    _client.indexExists(indexName, Meteor.bindEnvironment(function (err, result) {
       if (!err) {
-        if (result) {
-          console.log('initialSync ' + index.name + ' index');
-          initialSync(index.collection, index.name, index.type);
-        }
-        else {
-          console.log('Creating ' + index.name + ' index', mappings);
-          _client.createIndex(index.name, {mappings: mappings}, Meteor.bindEnvironment(function(err, result) {
+        if (!result) {
+          var mappings = {};
+
+          var collections = _.filter(_indexedCollections, function (collection) {
+            return collection.name == indexName;
+          });
+
+          _.each(collections, function (collection) {
+            // Build mappings
+            var props = {properties: {}};
+            _.each(collection.fields, function (field) {
+              if (field.mapping) {
+                var parts = field.name.split('.');
+                var current = props.properties;
+
+                if (parts.length > 1) {
+                  for (var i = 0; i <= parts.length - 2; ++i) {
+                    current[parts[i]] = current[parts[i]] || {
+                        properties: {}
+                      };
+                    current = current[parts[i]].properties;
+                  }
+                }
+                current[parts[parts.length - 1]] = field.mapping;
+              }
+            });
+            _.each(collection.relations, function (relation) {
+              if (relation.mapping) {
+                props.properties[relation.fieldName] = relation.mapping;
+              }
+            });
+
+            mappings[collection.type] = props;
+          });
+
+          console.log('Creating index', indexName, mappings);
+          _client.createIndex(indexName, {mappings: mappings}, Meteor.bindEnvironment(function (err, result) {
             if (!err) {
               console.log("Index created ", result);
-              initialSync(index.collection, index.name, index.type);
+
+              // Sync collections
+              console.log('Indexing collections');
+              _.each(collections, function(collection) {
+                initialSync(collection.collection, collection.name, collection.type);
+              })
+            } else {
+              console.log('index creation error', err, index);
             }
-            else
-              console.log('index creation error',err,index);
           }));
         }
       }
-      else console.log('index exists error',err);
+      else console.log('index exists error', err);
     }));
-  };
+  }
 };
 
 // Used to define which collections are synchronized, which fields are considered
@@ -115,7 +119,7 @@ ES.syncCollection = function(options) {
 
   // Save sync information, when ES connection is ready this information is used
   // to sync documents that have not been synchronized before in this index (each collection has its index)
-  _indexedCollections.push({name: indexName, collection: collection, fields: options.fields, relations: options.relations, type: type});
+  _indexedCollections.push({name: indexName, type: type, collection: collection, fields: options.fields, relations: options.relations});
 
   // Define collection's hook to keep track of changes in documents
   // When a document is inserted it's synchronized on ES and a flag is set
