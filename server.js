@@ -85,7 +85,7 @@ ES.connect = function(options) {
               // Sync collections
               console.log('Indexing collections');
               _.each(collections, function(collection) {
-                initialSync(collection.collection, collection.name, collection.type);
+                initialSync(collection);
               })
             } else {
               console.log('index creation error', err, index);
@@ -95,7 +95,7 @@ ES.connect = function(options) {
           // Sync collections
           console.log('Indexing collections');
           _.each(collections, function(collection) {
-            initialSync(collection.collection, collection.name, collection.type);
+            initialSync(collection);
           })
         }
       }
@@ -351,50 +351,65 @@ var isConnectionReady = function() {
 // to Elasticsearch server.
 // @param collection {Mongo.Collection} Collection to be synchronized
 // @param indexName {String} Name of the index where collection will be synchronized
-var initialSync = function(collection, indexName, type) {
+var initialSync = function(collection) {
   // Initial sync. Index all document not indexed on this index
-  var documents = collection.find().fetch();
-  var options = getIndexedCollection(indexName, type);
+  var filter = {};
+  filter['_es_' + collection.name] = {$exists: false};
+  var options = {limit: 10000};
+  var total = collection.collection.find(filter).count();
 
-  // Generate bulk's operation
-  var operations = [];
-  _.forEach(documents, function(document) {
-    if (!document.hierId) console.log('es document no hier',document);
-    if (document['_es_' + indexName])
-      return; // Already indexed
-
-    // Define operation
-    var op = {
-      index: indexName,
-      type: options.type,
-      id: document._id,
-      data: map(document, options.fields)
-    };
-
-    operations.push({index: op});
-  });
-
-  if (!operations || operations.length == 0)
-    return;
-
-  console.log('calling es bulk');
-  _client.bulk(operations, Meteor.bindEnvironment(function(err, result) {
-    if (!err) {
-      // Get documents' id of those indexed in the bulk
-      var documentIds = _.map(operations, function(op) {
-        return op.index.id;
-      });
-
-      // mark them as indexed on the index with name indexName
-      var flag = {
-        $set: {}
-      };
-      flag.$set['_es_' + indexName] = Date.now();
-      collection.direct.update({_id: {$in: documentIds}}, flag, {multi: true});
-    } else
-      console.log('es bulk ops',err,result);
-  }));
+  return syncBatch(collection, options, 0, total);
 };
+
+var syncBatch = function (collection, options, current, total) {
+  var filter = {};
+  filter['_es_' + collection.name] = {$exists: false};
+
+  var documents = collection.collection.find(filter, options).fetch();
+  if (documents.length > 0) {
+    // Update current batch
+    current += documents.length;
+
+    // Generate bulk's operation
+    var operations = [];
+    _.each(documents, function(document) {
+      if (!document.hierId) console.log('es document no hier', document);
+
+      // Define operation
+      var op = {
+        index: collection.name,
+        type: collection.type,
+        id: document._id,
+        data: map(document, collection.fields)
+      };
+
+      operations.push({index: op});
+    });
+
+    if (operations.length > 0) {
+      console.log('calling es bulk for ' + collection.type + ' documents ' + current + '/' + total);
+      _client.bulk(operations, Meteor.bindEnvironment(function(err, result) {
+        if (!err) {
+          // Get documents' id of those indexed in the bulk
+          var documentIds = _.map(operations, function(op) {
+            return op.index.id;
+          });
+
+          // mark them as indexed on the index with name indexName
+          var flag = {
+            $set: {}
+          };
+          flag.$set['_es_' + collection.name] = Date.now();
+          collection.collection.direct.update({_id: {$in: documentIds}}, flag, {multi: true});
+
+          // Recursive call
+          return syncBatch(collection, options, current, total);
+        } else
+          console.log('es bulk ops',err,result);
+      }));
+    }
+  }
+}
 
 // Helper used to fetch information about index synchronizations by their indexName
 // @param indeName {String}
