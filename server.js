@@ -267,7 +267,7 @@ Meteor.methods({
   // Method called by collections' extended method 'esSearch' in client side.
   // It performs a search on Elasticsearch server and return the result to client side
   // @param indexName {String} Index's name where search will be performed
-  'esSearch': function(indexName, type, query, filters, highlight, pagingOptions) {
+  'esSearch': function(indexName, type, query, filters, sort, highlight, pagingOptions) {
     if (!_.isObject(pagingOptions)) pagingOptions = {};
     if (pagingOptions.limit === undefined) pagingOptions.limit = 25;
     if (pagingOptions.skip === undefined) pagingOptions.skip = 0;
@@ -297,6 +297,9 @@ Meteor.methods({
 
     var async = Meteor._wrapAsync(
       Meteor.bindEnvironment(function(cb) {
+        if(!query.sort && _.isObject(sort)) {
+          query.sort = sort;
+        }
         _client.search({query: query, size: pagingOptions.limit, from: pagingOptions.skip, highlight: highlight, type: type, index: indexName}, function(err, result) {
           cb(err, result);
         })

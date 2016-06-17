@@ -15,7 +15,7 @@ ES.syncCollection = function (options) {
   // @param searchString {String} string used to perform the search on Elasticsearch
   // @param filters {Object} filter defined by the user using Elasticsearch query syntax
   // @param cb {Function} function called when result is ready
-  collection.esSearch = function (searchString, filters, pagingOptions, cb) {
+  collection.esSearch = function (searchString, filters,  sort, pagingOptions, cb) {
     // handle arguments.. support be called without options
     if (arguments.length === 3){
       cb = pagingOptions;
@@ -90,8 +90,7 @@ ES.syncCollection = function (options) {
       highlight.fields[field] = {};
     });
     // Call server side method 'esSearch' using collection name as the index name
-
-    Meteor.call('esSearch', options.indexName, options.type, query, filters, highlight, pagingOptions, function (err, result) {
+    Meteor.call('esSearch', options.indexName, options.type, query, filters, sort, highlight, pagingOptions, function (err, result) {
       if (!err) {
         //console.log(result);
       }
