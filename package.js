@@ -1,7 +1,7 @@
 Package.describe({
   name: 'aida:es',
   summary: "ES",
-  version: '0.2.15',
+  version: '0.2.16',
   git: 'https://github.com/Exartu/Exartu-Elasticsearch.git'
 });
 
