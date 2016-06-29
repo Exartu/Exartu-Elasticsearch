@@ -281,26 +281,45 @@ Meteor.methods({
     filters = filters || {};
     filters.bool = filters.bool || {};
     filters.bool.should = filters.bool.should || [];
-    _.each(readHierarchies, function (hier) {  filters.bool.should.push({term: {hierId: hier}}); });
+    _.each(readHierarchies, function (hier) {  filters.bool.must.push({term: {hierId: hier}}); });
 
     // Change query format if filters are defined
     if (filters.bool.should.length > 0) {
-      query = {
-        filtered: {
-          query: query,
-          filter: filters
+      _.each(filters.bool.should, function (should) {
+        if(!query.bool.should){
+          query.bool.should = [];
         }
-      };
+        query.bool.should.push(should);
+      })
     }
+    if (filters.bool.must.length > 0) {
+      _.each(filters.bool.must, function (must) {
+        if(!query.bool.must){
+          query.bool.must = [];
+        }
+        query.bool.must.push(must);
+      })
+    }
+    query = {
+      filtered: {
+        query: query,
+        filter: {and: filters.and}
+      }
+    };
+
     var options = getIndexedCollection(indexName, type);
 
 
     var async = Meteor._wrapAsync(
       Meteor.bindEnvironment(function(cb) {
-        if(!query.sort && _.isObject(sort)) {
-          query.sort = sort;
+        // if(!query.sort && _.isObject(sort)) {
+        //   query.sort = sort;
+        // }
+        var toSend = {query: query, size: pagingOptions.limit, from: pagingOptions.skip, highlight: highlight, type: type, index: indexName}
+        if(sort){
+         toSend.sort = sort;
         }
-        _client.search({query: query, size: pagingOptions.limit, from: pagingOptions.skip, highlight: highlight, type: type, index: indexName}, function(err, result) {
+        _client.search(toSend, function(err, result) {
           cb(err, result);
         })
       })
