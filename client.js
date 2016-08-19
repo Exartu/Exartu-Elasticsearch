@@ -44,8 +44,8 @@ ES.syncCollection = function (options) {
 
     // Define object to highlight search results on one or more fields
     var highlight = {
-      "pre_tags": ["<strong>"],
-      "post_tags": ["</strong>"],
+      "pre_tags": ["<mark>"],
+      "post_tags": ["</mark>"],
       fields: {}
     };
 
