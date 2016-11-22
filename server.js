@@ -281,7 +281,10 @@ Meteor.methods({
     filters = filters || {};
     filters.bool = filters.bool || {};
     filters.bool.should = filters.bool.should || [];
-    _.each(readHierarchies, function (hier) {  filters.bool.must.push({term: {hierId: hier}}); });
+    var orHiers = [];
+    _.each(readHierarchies, function (hier) {
+      orHiers.push({term: {hierId: hier}});
+    });
 
     // Change query format if filters are defined
     if (filters.bool.should.length > 0) {
@@ -303,7 +306,7 @@ Meteor.methods({
     query = {
       filtered: {
         query: query,
-        filter: {and: filters.and}
+        filter: {and: filters.and, or: orHiers}
       }
     };
 
