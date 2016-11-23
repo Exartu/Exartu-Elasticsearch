@@ -303,13 +303,13 @@ Meteor.methods({
         query.bool.must.push(must);
       })
     }
+    filters.and.push({or:orHiers})
     query = {
       filtered: {
         query: query,
-        filter: {and: filters.and, or: orHiers}
+        filter: {and: filters.and}
       }
     };
-
     var options = getIndexedCollection(indexName, type);
 
 
